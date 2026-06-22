@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OrderConfirmationRouteImport } from './routes/order-confirmation'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DbTestRouteImport } from './routes/db-test'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiDbTestRouteImport } from './routes/api/db-test'
 
 const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
   id: '/order-confirmation',
@@ -22,6 +24,11 @@ const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DbTestRoute = DbTestRouteImport.update({
+  id: '/db-test',
+  path: '/db-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -34,39 +41,71 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDbTestRoute = ApiDbTestRouteImport.update({
+  id: '/api/db-test',
+  path: '/api/db-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/checkout' | '/login' | '/order-confirmation'
+  fullPaths:
+    | '/'
+    | '/checkout'
+    | '/db-test'
+    | '/login'
+    | '/order-confirmation'
+    | '/api/db-test'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/checkout' | '/login' | '/order-confirmation'
-  id: '__root__' | '/' | '/checkout' | '/login' | '/order-confirmation'
+  to:
+    | '/'
+    | '/checkout'
+    | '/db-test'
+    | '/login'
+    | '/order-confirmation'
+    | '/api/db-test'
+  id:
+    | '__root__'
+    | '/'
+    | '/checkout'
+    | '/db-test'
+    | '/login'
+    | '/order-confirmation'
+    | '/api/db-test'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CheckoutRoute: typeof CheckoutRoute
+  DbTestRoute: typeof DbTestRoute
   LoginRoute: typeof LoginRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
+  ApiDbTestRoute: typeof ApiDbTestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/db-test': {
+      id: '/db-test'
+      path: '/db-test'
+      fullPath: '/db-test'
+      preLoaderRoute: typeof DbTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout': {
       id: '/checkout'
       path: '/checkout'
@@ -99,14 +145,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/db-test': {
+      id: '/api/db-test'
+      path: '/api/db-test'
+      fullPath: '/api/db-test'
+      preLoaderRoute: typeof ApiDbTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CheckoutRoute: CheckoutRoute,
+  DbTestRoute: DbTestRoute,
   LoginRoute: LoginRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
+  ApiDbTestRoute: ApiDbTestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

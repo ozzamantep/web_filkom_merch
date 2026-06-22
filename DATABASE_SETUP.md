@@ -26,6 +26,7 @@
 ## Environment Variables
 
 File `.env.local` (create di root project):
+
 ```
 VITE_API_URL=http://localhost:5173/api
 DB_HOST=localhost
@@ -40,6 +41,7 @@ MIDTRANS_CLIENT_KEY=YOUR_MIDTRANS_SERVER_KEY
 ## Testing Connection
 
 Setelah setup, test dengan:
+
 1. `npm run dev`
 2. Buka http://localhost:5173/api/products
 3. Harus tampil list products dari database

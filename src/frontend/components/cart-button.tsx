@@ -1,7 +1,7 @@
 import { ShoppingBag } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { useCart } from "@/hooks/use-cart";
+import { Button } from "@frontend/components/ui/button";
+import { useCart } from "@frontend/hooks/use-cart";
 
 export function CartButton() {
   const { getTotalItems } = useCart();

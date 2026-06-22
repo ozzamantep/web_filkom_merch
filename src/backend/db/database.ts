@@ -1,5 +1,5 @@
-import mysql from 'mysql2/promise';
-import { config } from './config';
+import mysql from "mysql2/promise";
+import { config } from "../config/config";
 
 // Database configuration
 const dbConfig = {
@@ -29,10 +29,8 @@ export async function getConnection(): Promise<mysql.PoolConnection> {
 }
 
 // Helper function untuk query
-export async function query<T>(
-  sql: string,
-  values?: any[]
-): Promise<T[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function query<T>(sql: string, values?: any[]): Promise<T[]> {
   const connection = await getConnection();
   try {
     const [rows] = await connection.execute(sql, values);
@@ -43,10 +41,8 @@ export async function query<T>(
 }
 
 // Helper untuk single row
-export async function queryOne<T>(
-  sql: string,
-  values?: any[]
-): Promise<T | null> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function queryOne<T>(sql: string, values?: any[]): Promise<T | null> {
   const results = await query<T>(sql, values);
   return results[0] || null;
 }
@@ -54,14 +50,16 @@ export async function queryOne<T>(
 // Helper untuk insert/update/delete
 export async function execute(
   sql: string,
-  values?: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  values?: any[],
 ): Promise<{ insertId: number; affectedRows: number }> {
   const connection = await getConnection();
   try {
     const [result] = await connection.execute(sql, values);
+    const resultSet = result as { insertId?: number; affectedRows?: number };
     return {
-      insertId: (result as any).insertId || 0,
-      affectedRows: (result as any).affectedRows || 0,
+      insertId: resultSet.insertId || 0,
+      affectedRows: resultSet.affectedRows || 0,
     };
   } finally {
     connection.release();

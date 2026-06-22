@@ -52,18 +52,21 @@ npm run dev
 ## ✅ Verify Setup
 
 ### Test 1: Database Connection
+
 ```bash
 # Check di browser console:
 # Jika ada error tentang database, verify .env.local
 ```
 
 ### Test 2: Fetch Products
+
 ```
 Browser: http://localhost:5173/api/products
 Seharusnya return JSON array dari database
 ```
 
 ### Test 3: Create Order
+
 1. Add produk ke cart
 2. Checkout sampai Step 3
 3. Klik "Generate QR Code"
@@ -78,7 +81,7 @@ Seharusnya return JSON array dari database
 ```
 db_filkommerch/
 ├── users          # Akun pengguna
-├── categories     # Kategori produk  
+├── categories     # Kategori produk
 ├── products       # Data produk
 ├── product_variants # Ukuran & stok
 ├── orders         # Transaksi
@@ -118,6 +121,7 @@ Payment Webhook (future):
 ### Saat Checkout:
 
 **Table `orders`:**
+
 - order_id: `FILKOM-1718928324`
 - customer_name, email, phone
 - gross_amount: total harga
@@ -125,6 +129,7 @@ Payment Webhook (future):
 - snap_token: untuk retry pembayaran
 
 **Table `order_items`:**
+
 - Per item yang dibeli
 - product_name, size, quantity, price
 - subtotal = price × quantity
@@ -134,6 +139,7 @@ Payment Webhook (future):
 ## 🐛 Troubleshooting
 
 ### ❌ Error: "Can't connect to MySQL"
+
 ```
 ✅ Solution:
 1. Check Laragon running
@@ -142,6 +148,7 @@ Payment Webhook (future):
 ```
 
 ### ❌ Error: "Unknown database"
+
 ```
 ✅ Solution:
 1. Run SQL script di PhpMyAdmin
@@ -149,6 +156,7 @@ Payment Webhook (future):
 ```
 
 ### ❌ Error: "mysql2 not found"
+
 ```bash
 ✅ Solution:
 npm install mysql2
@@ -156,6 +164,7 @@ npm run dev
 ```
 
 ### ❌ Order tidak terinsert
+
 ```
 ✅ Check:
 1. Buka PhpMyAdmin table orders

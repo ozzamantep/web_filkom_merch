@@ -3,6 +3,7 @@
 ## 1. Setup Laragon MySQL Database
 
 ### Step 1: Run SQL Script
+
 1. Buka **http://localhost/phpmyadmin** (Laragon harus running)
 2. Login dengan:
    - Username: `root`
@@ -13,6 +14,7 @@
 6. Klik **"Go"** untuk execute
 
 ### Step 2: Verify Database
+
 ```sql
 USE db_filkommerch;
 SHOW TABLES;
@@ -42,6 +44,7 @@ VITE_API_URL=http://localhost:5173/api
 ```
 
 ### Penjelasan Variables:
+
 - `DB_HOST`: Server MySQL (localhost untuk Laragon)
 - `DB_USER`: User MySQL (default root di Laragon)
 - `DB_PASSWORD`: Password MySQL (kosong untuk Laragon default)
@@ -67,14 +70,19 @@ npm run dev
 ## 4. Test Database Connection
 
 ### Test 1: Fetch Products
+
 Buka di browser:
+
 ```
 http://localhost:5173/api/products
 ```
+
 Seharusnya return JSON array dengan products dari database.
 
 ### Test 2: Buat Order
+
 Saat checkout:
+
 1. Add produk ke cart
 2. Checkout sampai step 3
 3. Klik "Generate QR Code"
@@ -100,22 +108,26 @@ db_filkommerch/
 ## Troubleshooting
 
 ### Error: "Can't connect to MySQL"
+
 - [ ] Pastikan Laragon running (Apache + MySQL hijau)
 - [ ] Check DB_HOST, DB_USER, DB_PASSWORD di .env.local
 - [ ] Test connection di PhpMyAdmin
 
 ### Error: "Unknown database"
+
 - [ ] Check nama database di .env.local (harus `db_filkommerch`)
 - [ ] Run SQL script lagi di PhpMyAdmin
 - [ ] Check spelling (case-sensitive)
 
 ### Error: "mysql2 not found"
+
 ```bash
 npm install mysql2
 npm run dev
 ```
 
 ### Orders tidak terinsert saat checkout
+
 - [ ] Check database connection dengan buka PhpMyAdmin
 - [ ] Check console error di browser
 - [ ] Verify order_id tidak duplicate
@@ -125,6 +137,7 @@ npm run dev
 ## Next Steps
 
 Setelah berhasil:
+
 1. ✅ Products muncul dari database
 2. ✅ Orders terinsert saat checkout
 3. ⏭️ Setup webhook Midtrans untuk update payment status

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { CartItem } from "@/lib/midtrans";
+import type { CartItem } from "@backend/services/midtrans";
 
 export function useCart() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -45,9 +45,7 @@ export function useCart() {
     if (quantity <= 0) {
       removeItem(itemId);
     } else {
-      setCart((prevCart) =>
-        prevCart.map((i) => (i.id === itemId ? { ...i, quantity } : i)),
-      );
+      setCart((prevCart) => prevCart.map((i) => (i.id === itemId ? { ...i, quantity } : i)));
     }
   };
 

@@ -19,8 +19,10 @@ export interface TransactionDetails {
   orderId: string;
   grossAmount: number;
   customerName: string;
+  customerNim?: string;
   customerEmail: string;
   customerPhone: string;
+  shippingAddress?: string;
   items: CartItem[];
 }
 

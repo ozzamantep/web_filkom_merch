@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@frontend/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@frontend/components/ui/card";
 
 interface OrderConfirmationSearch {
   orderId?: string;

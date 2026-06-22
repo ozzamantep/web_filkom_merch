@@ -1,6 +1,6 @@
-import { type TransactionDetails } from "../../lib/midtrans";
-import { execute } from "../../lib/database";
-import { config } from "../../lib/config";
+import { type TransactionDetails } from "@backend/services/midtrans";
+import { execute } from "@backend/db/database";
+import { config } from "@backend/config/config";
 
 const midtransServerKey = config.midtrans.serverKey;
 const merchantId = "M934219320";
@@ -67,25 +67,25 @@ export async function createQrisPayment(details: TransactionDetails) {
 }
 
 // Create order di database dan generate QRIS payment
-export async function createOrderAndPayment(
-  details: TransactionDetails & { userId?: number }
-) {
+export async function createOrderAndPayment(details: TransactionDetails & { userId?: number }) {
   try {
     // 1. Insert order ke database
     await execute(
       `INSERT INTO orders (
-        order_id, user_id, customer_name, customer_email, 
-        customer_phone, gross_amount, transaction_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        order_id, user_id, customer_name, customer_nim, customer_email,
+        customer_phone, shipping_address, gross_amount, transaction_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         details.orderId,
         details.userId || null,
         details.customerName,
+        details.customerNim || null,
         details.customerEmail,
         details.customerPhone,
+        details.shippingAddress || null,
         details.grossAmount,
         "pending",
-      ]
+      ],
     );
 
     // 2. Insert order items
@@ -102,7 +102,7 @@ export async function createOrderAndPayment(
           item.quantity,
           item.price,
           item.price * item.quantity,
-        ]
+        ],
       );
     }
 
@@ -114,10 +114,11 @@ export async function createOrderAndPayment(
     }
 
     // 4. Update order dengan snap token
-    await execute(
-      "UPDATE orders SET snap_token = ?, payment_type = ? WHERE order_id = ?",
-      [paymentResult.token, "qris", details.orderId]
-    );
+    await execute("UPDATE orders SET snap_token = ?, payment_type = ? WHERE order_id = ?", [
+      paymentResult.token,
+      "qris",
+      details.orderId,
+    ]);
 
     return {
       success: true,
@@ -133,4 +134,3 @@ export async function createOrderAndPayment(
     };
   }
 }
-

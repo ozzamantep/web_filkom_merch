@@ -3,13 +3,13 @@ import { ShoppingBag, ArrowLeft, Loader2, QrCode, Copy, Check } from "lucide-rea
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { createOrderAndPayment } from "@/lib/server-actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { CartItem } from "@/lib/midtrans";
-import { MIDTRANS_CONFIG } from "@/lib/midtrans";
+import { createOrderAndPayment } from "@backend/server-actions";
+import { Button } from "@frontend/components/ui/button";
+import { Input } from "@frontend/components/ui/input";
+import { Label } from "@frontend/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@frontend/components/ui/card";
+import type { CartItem } from "@backend/services/midtrans";
+import { MIDTRANS_CONFIG } from "@backend/services/midtrans";
 
 interface CheckoutStep {
   step: number;
@@ -33,6 +33,8 @@ function CheckoutPage() {
   const [customerName, setCustomerName] = useState(user?.type === "buyer" ? user.name : "");
   const [customerEmail, setCustomerEmail] = useState(user?.type === "buyer" ? user.email : "");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerNim, setCustomerNim] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -117,18 +119,23 @@ function CheckoutPage() {
     setOrderId(newOrderId);
 
     try {
+      const buyerUserId =
+        user?.type === "buyer" && Number.isFinite(Number(user.id)) ? Number(user.id) : undefined;
+
       const transactionDetails = {
         orderId: newOrderId,
         grossAmount: totalAmount,
         customerName,
+        customerNim: customerNim.trim() || undefined,
         customerEmail,
         customerPhone,
+        shippingAddress: shippingAddress.trim() || undefined,
         items: cartItems,
-        userId: user?.type === "buyer" && "id" in user ? (user as any).id : undefined,
+        userId: buyerUserId,
       };
 
       // Call server function untuk create order di database dan generate QRIS
-      const result = await createOrderAndPayment(transactionDetails);
+      const result = await createOrderAndPayment({ data: transactionDetails });
 
       if (!result.success || !result.token) {
         throw new Error(result.error || "Failed to create payment");
@@ -136,13 +143,13 @@ function CheckoutPage() {
 
       // Set QR code URL
       setQrUrl(result.qrUrl);
-      
+
       // Move to QR code step
       setCurrentStep(4);
-      
+
       // Clear cart dari localStorage
       localStorage.removeItem("cart");
-      
+
       toast.success("QRIS berhasil dibuat! Silakan scan untuk membayar.");
       setIsProcessing(false);
     } catch (error) {
@@ -225,19 +232,42 @@ function CheckoutPage() {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Left Section */}
           <div className="lg:col-span-2">
-            {currentStep === 1 && <CartReviewStep items={cartItems} onQuantityChange={handleQuantityChange} onRemoveItem={handleRemoveItem} />}
+            {currentStep === 1 && (
+              <CartReviewStep
+                items={cartItems}
+                onQuantityChange={handleQuantityChange}
+                onRemoveItem={handleRemoveItem}
+              />
+            )}
             {currentStep === 2 && (
               <CustomerDetailsStep
                 name={customerName}
                 email={customerEmail}
                 phone={customerPhone}
+                nim={customerNim}
+                address={shippingAddress}
                 onNameChange={setCustomerName}
                 onEmailChange={setCustomerEmail}
                 onPhoneChange={setCustomerPhone}
+                onNimChange={setCustomerNim}
+                onAddressChange={setShippingAddress}
               />
             )}
-            {currentStep === 3 && <PaymentReviewStep items={cartItems} customer={{ name: customerName, email: customerEmail, phone: customerPhone }} />}
-            {currentStep === 4 && qrUrl && <QrCodePaymentStep qrUrl={qrUrl} orderId={orderId} customerName={customerName} />}
+            {currentStep === 3 && (
+              <PaymentReviewStep
+                items={cartItems}
+                customer={{
+                  name: customerName,
+                  nim: customerNim,
+                  email: customerEmail,
+                  phone: customerPhone,
+                  address: shippingAddress,
+                }}
+              />
+            )}
+            {currentStep === 4 && qrUrl && (
+              <QrCodePaymentStep qrUrl={qrUrl} orderId={orderId} customerName={customerName} />
+            )}
 
             {/* Navigation Buttons */}
             <div className="mt-8 flex gap-4">
@@ -292,14 +322,18 @@ function CheckoutPage() {
                     <span className="text-muted-foreground">
                       {item.name} × {item.quantity}
                     </span>
-                    <span className="font-medium">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
+                    <span className="font-medium">
+                      Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                    </span>
                   </div>
                 ))}
 
                 <div className="border-t border-border pt-4">
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
-                    <span className="text-lg text-primary">Rp {totalAmount.toLocaleString("id-ID")}</span>
+                    <span className="text-lg text-primary">
+                      Rp {totalAmount.toLocaleString("id-ID")}
+                    </span>
                   </div>
                 </div>
 
@@ -341,11 +375,16 @@ function CartReviewStep({ items, onQuantityChange, onRemoveItem }: CartReviewSte
       <CardContent>
         <div className="space-y-4">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div
+              key={item.id}
+              className="flex items-center justify-between rounded-lg border border-border p-4"
+            >
               <div className="flex-1">
                 <h3 className="font-medium text-foreground">{item.name}</h3>
                 <p className="text-sm text-muted-foreground">{item.category}</p>
-                <p className="mt-1 font-semibold text-foreground">Rp {item.price.toLocaleString("id-ID")}</p>
+                <p className="mt-1 font-semibold text-foreground">
+                  Rp {item.price.toLocaleString("id-ID")}
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -379,20 +418,28 @@ function CartReviewStep({ items, onQuantityChange, onRemoveItem }: CartReviewSte
 
 interface CustomerDetailsStepProps {
   name: string;
+  nim: string;
   email: string;
   phone: string;
+  address: string;
   onNameChange: (value: string) => void;
+  onNimChange: (value: string) => void;
   onEmailChange: (value: string) => void;
   onPhoneChange: (value: string) => void;
+  onAddressChange: (value: string) => void;
 }
 
 function CustomerDetailsStep({
   name,
+  nim,
   email,
   phone,
+  address,
   onNameChange,
+  onNimChange,
   onEmailChange,
   onPhoneChange,
+  onAddressChange,
 }: CustomerDetailsStepProps) {
   return (
     <Card>
@@ -423,6 +470,16 @@ function CustomerDetailsStep({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="nim">NIM</Label>
+          <Input
+            id="nim"
+            placeholder="23515040000000"
+            value={nim}
+            onChange={(e) => onNimChange(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="phone">Phone Number *</Label>
           <Input
             id="phone"
@@ -430,6 +487,16 @@ function CustomerDetailsStep({
             placeholder="+62 812 3456 7890"
             value={phone}
             onChange={(e) => onPhoneChange(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address">Shipping Address</Label>
+          <Input
+            id="address"
+            placeholder="Alamat pengiriman"
+            value={address}
+            onChange={(e) => onAddressChange(e.target.value)}
           />
         </div>
       </CardContent>
@@ -441,8 +508,10 @@ interface PaymentReviewStepProps {
   items: CartItem[];
   customer: {
     name: string;
+    nim: string;
     email: string;
     phone: string;
+    address: string;
   };
 }
 
@@ -459,7 +528,9 @@ function PaymentReviewStep({ items, customer }: PaymentReviewStepProps) {
               <span className="text-muted-foreground">
                 {item.name} × {item.quantity}
               </span>
-              <span className="font-medium">Rp {(item.price * item.quantity).toLocaleString("id-ID")}</span>
+              <span className="font-medium">
+                Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+              </span>
             </div>
           ))}
         </CardContent>
@@ -471,8 +542,10 @@ function PaymentReviewStep({ items, customer }: PaymentReviewStepProps) {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="font-medium">{customer.name}</p>
+          {customer.nim && <p className="text-sm text-muted-foreground">NIM: {customer.nim}</p>}
           <p className="text-sm text-muted-foreground">{customer.email}</p>
           <p className="text-sm text-muted-foreground">{customer.phone}</p>
+          {customer.address && <p className="text-sm text-muted-foreground">{customer.address}</p>}
         </CardContent>
       </Card>
     </div>
@@ -499,7 +572,9 @@ function QrCodePaymentStep({ qrUrl, orderId, customerName }: QrCodePaymentStepPr
       <Card>
         <CardHeader>
           <CardTitle>Scan QR Code untuk Membayar</CardTitle>
-          <CardDescription>Gunakan aplikasi pembayaran apapun (GoPay, Dana, OVO, dll)</CardDescription>
+          <CardDescription>
+            Gunakan aplikasi pembayaran apapun (GoPay, Dana, OVO, dll)
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-6">
           {/* QR Code */}
@@ -511,17 +586,8 @@ function QrCodePaymentStep({ qrUrl, orderId, customerName }: QrCodePaymentStepPr
           <div className="w-full">
             <label className="text-sm font-semibold text-foreground mb-2 block">Order ID</label>
             <div className="flex gap-2">
-              <Input
-                value={orderId || ""}
-                readOnly
-                className="font-mono text-xs"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopy}
-                className="shrink-0"
-              >
+              <Input value={orderId || ""} readOnly className="font-mono text-xs" />
+              <Button variant="outline" size="sm" onClick={handleCopy} className="shrink-0">
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
             </div>
@@ -542,10 +608,15 @@ function QrCodePaymentStep({ qrUrl, orderId, customerName }: QrCodePaymentStepPr
 
           {/* Payment Methods */}
           <div className="w-full">
-            <p className="text-xs font-semibold text-muted-foreground mb-3">Metode Pembayaran yang Diterima:</p>
+            <p className="text-xs font-semibold text-muted-foreground mb-3">
+              Metode Pembayaran yang Diterima:
+            </p>
             <div className="grid grid-cols-3 gap-2">
               {["GoPay", "OVO", "Dana", "LinkAja", "AlfaBank", "Jago"].map((method) => (
-                <div key={method} className="rounded border border-border p-2 text-center text-xs font-medium text-foreground">
+                <div
+                  key={method}
+                  className="rounded border border-border p-2 text-center text-xs font-medium text-foreground"
+                >
                   {method}
                 </div>
               ))}
@@ -575,14 +646,21 @@ function QrCodePaymentStep({ qrUrl, orderId, customerName }: QrCodePaymentStepPr
 
 // Global type for Midtrans Snap
 declare global {
+  type MidtransSnapResult = {
+    transaction_id?: string;
+    order_id?: string;
+    transaction_status?: string;
+    [key: string]: unknown;
+  };
+
   interface Window {
     snap?: {
       pay: (
         token: string,
         options: {
-          onSuccess?: (result: any) => void;
-          onPending?: (result: any) => void;
-          onError?: (result: any) => void;
+          onSuccess?: (result: MidtransSnapResult) => void;
+          onPending?: (result: MidtransSnapResult) => void;
+          onError?: (result: MidtransSnapResult) => void;
           onClose?: () => void;
         },
       ) => void;

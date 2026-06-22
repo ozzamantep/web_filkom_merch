@@ -1,5 +1,5 @@
-import { createServerFn } from '@tanstack/react-start';
-import { execute, queryOne, query } from '../../lib/database';
+import { createServerFn } from "@tanstack/react-start";
+import { execute, queryOne, query } from "@backend/db/database";
 
 // Interface untuk Order
 export interface Order {
@@ -25,76 +25,75 @@ export interface OrderItem {
   order_id: string;
   product_id: number | null;
   product_name: string;
+  customer_nim: string | null;
   size: string;
   quantity: number;
+  shipping_address: string | null;
   price: number;
   subtotal: number;
 }
 
 // Get order by order_id
-export const getOrderById = createServerFn(
-  { method: 'GET' },
-  async (orderId: string): Promise<{ order: Order; items: OrderItem[] } | null> => {
+export const getOrderById = createServerFn({ method: "GET" })
+  .validator((orderId: string) => orderId)
+  .handler(
+  async ({ data: orderId }): Promise<{ order: Order; items: OrderItem[] } | null> => {
     try {
-      const order = await queryOne<Order>(
-        'SELECT * FROM orders WHERE order_id = ?',
-        [orderId]
-      );
+      const order = await queryOne<Order>("SELECT * FROM orders WHERE order_id = ?", [orderId]);
 
       if (!order) return null;
 
-      const items = await query<OrderItem>(
-        'SELECT * FROM order_items WHERE order_id = ?',
-        [orderId]
-      );
+      const items = await query<OrderItem>("SELECT * FROM order_items WHERE order_id = ?", [
+        orderId,
+      ]);
 
       return { order, items };
     } catch (error) {
-      console.error('Error fetching order:', error);
+      console.error("Error fetching order:", error);
       return null;
     }
-  }
+  },
 );
 
 // Update order payment status (untuk webhook Midtrans)
-export const updateOrderPaymentStatus = createServerFn(
-  { method: 'POST' },
-  async (
-    orderId: string,
-    status: string,
-    midtransTransactionId: string,
-    paymentType: string
-  ) => {
+export const updateOrderPaymentStatus = createServerFn({ method: "POST" })
+  .validator((d: { orderId: string; status: string; midtransTransactionId: string; paymentType: string }) => d)
+  .handler(
+  async ({ data: { orderId, status, midtransTransactionId, paymentType } }) => {
     try {
       await execute(
         `UPDATE orders 
          SET transaction_status = ?, midtrans_transaction_id = ?, payment_type = ?
          WHERE order_id = ?`,
-        [status, midtransTransactionId, paymentType, orderId]
+        [status, midtransTransactionId, paymentType, orderId],
       );
 
       return { success: true };
     } catch (error) {
-      console.error('Error updating order status:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update order' };
+      console.error("Error updating order status:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to update order",
+      };
     }
-  }
+  },
 );
 
 // Get order history (untuk user)
-export const getOrderHistory = createServerFn(
-  { method: 'GET' },
-  async (userId: number): Promise<Order[]> => {
+export const getOrderHistory = createServerFn({ method: "GET" })
+  .validator((userId: number) => userId)
+  .handler(
+  async ({ data: userId }): Promise<Order[]> => {
     try {
       const orders = await query<Order>(
-        'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC',
-        [userId]
+        "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC",
+        [userId],
       );
 
       return orders;
     } catch (error) {
-      console.error('Error fetching order history:', error);
+      console.error("Error fetching order history:", error);
       return [];
     }
-  }
+  },
 );

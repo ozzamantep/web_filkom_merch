@@ -12,7 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@frontend/components/ui/sonner";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 function NotFoundComponent() {
   return (
@@ -125,12 +126,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-center" />
-      </QueryClientProvider>
-    </AuthProvider>
+    <GoogleOAuthProvider clientId="159528757023-4sr74hnesnfc377l0pule7b7fhh3g65n.apps.googleusercontent.com">
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster position="top-center" />
+        </QueryClientProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }

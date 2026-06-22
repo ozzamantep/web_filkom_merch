@@ -144,10 +144,14 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
   }
-  h1, h2, h3, h4, .display {
-    font-family: 'Anton', 'Bebas Neue', sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  .display {
+    font-family: "Anton", "Bebas Neue", sans-serif;
     letter-spacing: -0.01em;
     text-transform: uppercase;
   }
@@ -161,8 +165,12 @@
 }
 
 @keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 .marquee-track {
   animation: marquee 30s linear infinite;
