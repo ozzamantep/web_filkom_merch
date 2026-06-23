@@ -13,6 +13,8 @@ import { Route as OrderConfirmationRouteImport } from './routes/order-confirmati
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminKasirRouteImport } from './routes/admin/kasir'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 
 const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
   id: '/order-confirmation',
@@ -34,18 +36,32 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminKasirRoute = AdminKasirRouteImport.update({
+  id: '/admin/kasir',
+  path: '/admin/kasir',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +69,34 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/checkout' | '/login' | '/order-confirmation'
+  fullPaths:
+    | '/'
+    | '/checkout'
+    | '/login'
+    | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/checkout' | '/login' | '/order-confirmation'
-  id: '__root__' | '/' | '/checkout' | '/login' | '/order-confirmation'
+  to:
+    | '/'
+    | '/checkout'
+    | '/login'
+    | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
+  id:
+    | '__root__'
+    | '/'
+    | '/checkout'
+    | '/login'
+    | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +104,8 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   LoginRoute: typeof LoginRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminKasirRoute: typeof AdminKasirRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +138,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/kasir': {
+      id: '/admin/kasir'
+      path: '/admin/kasir'
+      fullPath: '/admin/kasir'
+      preLoaderRoute: typeof AdminKasirRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +160,8 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   LoginRoute: LoginRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminKasirRoute: AdminKasirRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

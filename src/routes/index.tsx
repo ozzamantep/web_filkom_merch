@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Search, User, ShoppingBag, Instagram, Facebook, ArrowRight, Menu, X, Plus, Minus, Trash2, LogOut } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { getProducts } from "@/lib/server-actions";
@@ -88,10 +88,10 @@ function Index() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const result = await getProducts();
-        if (result.products && result.products.length > 0) {
+        const result = (await getProducts()) as unknown as { products: any[]; error?: string };
+        if (result?.products && result.products.length > 0) {
           // Convert database products to display format
-          const formattedProducts = result.products.map((p) => ({
+          const formattedProducts = result.products.map((p: any) => ({
             img: p.image_url || pVarsity, // fallback ke image default
             name: p.name,
             price: `Rp ${p.price.toLocaleString('id-ID')}`,
@@ -115,37 +115,37 @@ function Index() {
     loadProducts();
   }, []);
 
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const cartTotal = cart.reduce((s, i) => s + parsePrice(i.price) * i.qty, 0);
+  const cartCount = cart.reduce((s: number, i: CartItem) => s + i.qty, 0);
+  const cartTotal = cart.reduce((s: number, i: CartItem) => s + parsePrice(i.price) * i.qty, 0);
 
   const visibleProducts = useMemo(() => {
     let list = products;
-    if (filter !== "ALL") list = list.filter((p) => p.cat === filter);
+    if (filter !== "ALL") list = list.filter((p: typeof PRODUCTS[number]) => p.cat === filter);
     if (query.trim()) {
       const q = query.toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
+      list = list.filter((p: typeof PRODUCTS[number]) => p.name.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
     }
     return list;
   }, [filter, query, products]);
 
   const addToCart = (p: typeof PRODUCTS[number]) => {
-    setCart((c) => {
-      const existing = c.find((i) => i.name === p.name);
-      if (existing) return c.map((i) => (i.name === p.name ? { ...i, qty: i.qty + 1 } : i));
+    setCart((c: CartItem[]) => {
+      const existing = c.find((i: CartItem) => i.name === p.name);
+      if (existing) return c.map((i: CartItem) => (i.name === p.name ? { ...i, qty: i.qty + 1 } : i));
       return [...c, { name: p.name, price: p.price, img: p.img, qty: 1 }];
     });
     toast.success("Added to bag", { description: p.name });
   };
 
   const updateQty = (name: string, delta: number) => {
-    setCart((c) =>
+    setCart((c: CartItem[]) =>
       c
-        .map((i) => (i.name === name ? { ...i, qty: i.qty + delta } : i))
-        .filter((i) => i.qty > 0),
+        .map((i: CartItem) => (i.name === name ? { ...i, qty: i.qty + delta } : i))
+        .filter((i: CartItem) => i.qty > 0),
     );
   };
 
-  const removeItem = (name: string) => setCart((c) => c.filter((i) => i.name !== name));
+  const removeItem = (name: string) => setCart((c: CartItem[]) => c.filter((i: CartItem) => i.name !== name));
 
   const handleNav = (item: typeof NAV[number]) => {
     setMenuOpen(false);
@@ -188,7 +188,7 @@ function Index() {
     setCartOpen(false);
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email.includes("@")) {
       toast.error("Email tidak valid");
@@ -472,11 +472,11 @@ function Index() {
           <h2 className="display text-4xl lg:text-6xl leading-none">
             Jangan ketinggalan<br/><span className="text-brand-orange">drop berikutnya.</span>
           </h2>
-          <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
+          <form className="flex flex-col gap-3" onSubmit={handleSubscribe}>
             <label className="text-xs tracking-[0.3em] text-cream/70">EMAIL MAHASISWA</label>
             <div className="flex border-b border-cream/40 pb-3">
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@student.ub.ac.id" className="flex-1 bg-transparent outline-none placeholder:text-cream/40 text-cream" />
-              <button onClick={handleSubscribe} type="submit" className="text-xs font-bold tracking-[0.2em] text-brand-orange hover:text-cream">SUBSCRIBE →</button>
+              <button type="submit" className="text-xs font-bold tracking-[0.2em] text-brand-orange hover:text-cream">SUBSCRIBE →</button>
             </div>
             <p className="text-xs text-cream/50 mt-2">Dapat info drop pertama + diskon eksklusif member.</p>
           </form>

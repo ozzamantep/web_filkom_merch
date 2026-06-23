@@ -26,29 +26,33 @@ export interface ProductWithVariants extends Product {
 }
 
 // Get all products
-export const getProducts = createServerFn(
-  { method: 'GET' },
-  async (): Promise<{ products: ProductWithVariants[]; error?: string }> => {
-    try {
-      // Import database functions only on server
-      const { query } = await import('./database');
-      
-      const products = await query<Product>(
-        'SELECT * FROM products WHERE is_active = TRUE ORDER BY id DESC'
-      );
+export const getProducts = createServerFn({ method: 'GET' })
+  .validator((data: unknown) => {
+    // GET requests don't typically have data, but validator is required
+    return data;
+  })
+  .handler(
+    async (): Promise<{ products: ProductWithVariants[]; error?: string }> => {
+      try {
+        // Import database functions only on server
+        const { query } = await import('./database');
+        
+        const products = await query<Product>(
+          'SELECT * FROM products WHERE is_active = TRUE ORDER BY id DESC'
+        );
 
-      const productsWithVariants = await Promise.all(
-        products.map(async (product) => {
-          const variants = await query<ProductVariant>(
-            'SELECT * FROM product_variants WHERE product_id = ?',
-            [product.id]
-          );
-          return { ...product, variants };
-        })
-      );
+        const productsWithVariants = await Promise.all(
+          products.map(async (product) => {
+            const variants = await query<ProductVariant>(
+              'SELECT * FROM product_variants WHERE product_id = ?',
+              [product.id]
+            );
+            return { ...product, variants };
+          })
+        );
 
-      return { products: productsWithVariants };
-    } catch (error) {
+        return { products: productsWithVariants };
+      } catch (error) {
       console.error('Error fetching products:', error);
       return { products: [], error: 'Failed to fetch products' };
     }
@@ -99,17 +103,28 @@ export interface TransactionDetails {
   userId?: number;
 }
 
-export const createOrderAndPayment = createServerFn(
-  { method: 'POST' },
+// New Payment & Order Processing
+export const createPaymentAndOrder = createServerFn({ method: 'POST' })(
   async (details: TransactionDetails) => {
     try {
       // Import database functions only on server
-      const { execute, queryOne } = await import('./database');
+      const { execute, queryOne, query } = await import('./database');
       
-      console.log('🔄 Creating order:', details.orderId);
+      // DEBUG: Log everything
+      console.log('═══════════════════════════════════════════');
+      console.log('🔄 [createPaymentAndOrder] SERVER FUNCTION EXECUTING');
+      console.log('📋 Details received:', {
+        orderId: details.orderId,
+        amount: details.grossAmount,
+        customer: details.customerName,
+        itemsCount: details.items.length
+      });
+      console.log('🔑 MIDTRANS_SERVER_KEY exists:', !!config.midtrans.serverKey);
+      console.log('🔑 MIDTRANS_SERVER_KEY length:', config.midtrans.serverKey?.length || 0);
+      console.log('═══════════════════════════════════════════');
       
       const midtransServerKey = config.midtrans.serverKey;
-      const merchantId = 'M934219320';
+      const merchantId = 'M034219320';
 
       if (!midtransServerKey) {
         throw new Error('MIDTRANS_SERVER_KEY not configured in .env.local');
@@ -134,15 +149,24 @@ export const createOrderAndPayment = createServerFn(
       );
       console.log('✅ Order inserted');
 
-      // 2. Insert order items
-      console.log('📦 Inserting order items...');
+      // 2. Insert order items & reserve stock
+      console.log('📦 Processing items...');
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
       for (const item of details.items) {
+        const product = await queryOne<{ id: number }>(
+          'SELECT id FROM products WHERE name = ? LIMIT 1',
+          [item.name]
+        );
+
         await execute(
           `INSERT INTO order_items (
-            order_id, product_name, size, quantity, price, subtotal
-          ) VALUES (?, ?, ?, ?, ?, ?)`,
+            order_id, product_id, product_name, size, quantity, price, subtotal
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             details.orderId,
+            product?.id || null,
             item.name,
             'One Size',
             item.quantity,
@@ -150,14 +174,43 @@ export const createOrderAndPayment = createServerFn(
             item.price * item.quantity,
           ]
         );
-      }
-      console.log('✅ Order items inserted');
 
-      // 3. Generate QRIS payment via Midtrans
-      console.log('🔐 Generating QRIS payment...');
+        // Check stock & reserve
+        if (product?.id) {
+          const stock = await queryOne<{ stock: number }>(
+            'SELECT stock FROM inventory WHERE product_id = ?',
+            [product.id]
+          );
+
+          const reserved = await queryOne<{ reserved: number }>(
+            `SELECT COALESCE(SUM(quantity), 0) as reserved 
+             FROM stock_reservations 
+             WHERE product_id = ? AND status = 'active' AND expires_at > NOW()`,
+            [product.id]
+          );
+
+          const available = (stock?.stock || 0) - (reserved?.reserved || 0);
+
+          if (available < item.quantity) {
+            console.error(`❌ Insufficient stock for product ${product.id}`);
+            throw new Error(`Insufficient stock for ${item.name}`);
+          }
+
+          // Reserve stock
+          await execute(
+            `INSERT INTO stock_reservations (order_id, product_id, size, quantity, expires_at, status)
+             VALUES (?, ?, ?, ?, ?, 'active')`,
+            [details.orderId, product.id, 'One Size', item.quantity, expiresAt]
+          );
+          console.log(`✅ Reserved ${item.quantity} of product ${product.id}`);
+        }
+      }
+
+      // 3. Generate Midtrans QRIS
+      console.log('🔐 Calling Midtrans API...');
       const encodedKey = Buffer.from(`${merchantId}:${midtransServerKey}`).toString('base64');
 
-      const transactionPayload = {
+      const payload = {
         transaction_details: {
           order_id: details.orderId,
           gross_amount: details.grossAmount,
@@ -174,64 +227,61 @@ export const createOrderAndPayment = createServerFn(
           name: item.name,
         })),
         payment_type: 'qris',
-        qris: {
-          acquirer: 'gopay',
-        },
-        expiry: {
-          unit: 'minutes',
-          length: 60,
-        },
+        qris: { acquirer: 'gopay' },
+        expiry: { unit: 'minutes', length: 60 },
       };
 
       const response = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${encodedKey}`,
-          Accept: 'application/json',
+          'Authorization': `Basic ${encodedKey}`,
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(transactionPayload),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error('❌ Midtrans error:', error);
-        throw new Error(`Midtrans API error: ${response.status} - ${error}`);
+        const errorText = await response.text();
+        console.error('❌ Midtrans error:', errorText);
+
+        // Cleanup
+        await execute(
+          'UPDATE stock_reservations SET status = ? WHERE order_id = ?',
+          ['cancelled', details.orderId]
+        );
+
+        throw new Error(`Midtrans error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ QRIS generated');
+      console.log('✅ Midtrans QRIS generated');
 
-      // 4. Update order dengan snap token
-      console.log('🔐 Updating order with snap token...');
+      // 4. Update order with token
       await execute(
         'UPDATE orders SET snap_token = ?, payment_type = ? WHERE order_id = ?',
         [data.token, 'qris', details.orderId]
       );
-      console.log('✅ Order updated');
-
       console.log('✨ Payment created successfully');
+
       return {
         success: true,
         orderId: details.orderId,
         token: data.token,
         qrUrl: `https://app.sandbox.midtrans.com/qris/${data.token}.png`,
       };
+
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('❌ Error creating order:', errorMsg);
+      const msg = error instanceof Error ? error.message : 'Server error';
+      console.error('❌ [createPaymentAndOrder] Error:', msg);
       console.error('📍 Stack:', error instanceof Error ? error.stack : 'N/A');
-      return {
-        success: false,
-        error: errorMsg,
-      };
+      return { success: false, error: msg };
     }
   }
 );
 
 // Get order by ID
-export const getOrderById = createServerFn(
-  { method: 'GET' },
+export const getOrderById = createServerFn({ method: 'GET' })(
   async (
     orderId: string
   ): Promise<{ success: boolean; order?: Order; items?: OrderItem[]; error?: string }> => {

@@ -1,8 +1,10 @@
+import { config } from './config';
+
 // Midtrans configuration for Sandbox
 export const MIDTRANS_CONFIG = {
   isProduction: false,
-  clientKey: "YOUR_MIDTRANS_SERVER_KEY",
-  serverKey: "YOUR_MIDTRANS_SERVER_KEY",
+  clientKey: config.midtrans.clientKey,
+  serverKey: config.midtrans.serverKey,
   merchantId: "M934219320",
   snapUrl: "https://app.sandbox.midtrans.com/snap/snap.js",
 };

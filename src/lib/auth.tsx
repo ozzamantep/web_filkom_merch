@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
 export interface AdminUser {
   type: "admin";
+  id: number;
   username: string;
   email: string;
 }
@@ -44,14 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginAsAdmin = async (username: string, password: string) => {
-    // Simple validation
+    // Simple validation - in production, this would be an API call
     if (username !== "adminfm" || password !== "Filkommerch123_wkwk") {
       throw new Error("Invalid username or password");
     }
 
     const adminUser: AdminUser = {
       type: "admin",
-      username: "adminfm",
+      id: 1,
+      username,
       email: "admin@filkommerch.ub",
     };
 
@@ -72,7 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
-    localStorage.removeItem("cart");
   };
 
   return (

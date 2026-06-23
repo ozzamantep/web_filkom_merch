@@ -3,13 +3,23 @@ import { ShoppingBag, ArrowLeft, Loader2, QrCode, Copy, Check } from "lucide-rea
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { createOrderAndPayment } from "@/lib/server-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CartItem } from "@/lib/midtrans";
 import { MIDTRANS_CONFIG } from "@/lib/midtrans";
+import { createPaymentAndOrder } from "@/lib/server-actions";
+
+interface CheckoutPaymentRequest {
+  orderId: string;
+  grossAmount: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  items: Array<{ id: string; name: string; price: number; quantity: number }>;
+  userId?: number;
+}
 
 interface CheckoutStep {
   step: number;
@@ -28,7 +38,7 @@ export const Route = createFileRoute("/checkout")({
 
 function CheckoutPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState(user?.type === "buyer" ? user.name : "");
   const [customerEmail, setCustomerEmail] = useState(user?.type === "buyer" ? user.email : "");
@@ -48,6 +58,10 @@ function CheckoutPage() {
 
   // Check auth and load cart
   useEffect(() => {
+    if (loading) {
+      return;
+    }
+
     if (!user) {
       navigate({ to: "/login" });
       return;
@@ -64,7 +78,7 @@ function CheckoutPage() {
     } else {
       toast.error("Your cart is empty");
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -127,10 +141,17 @@ function CheckoutPage() {
         userId: user?.type === "buyer" && "id" in user ? (user as any).id : undefined,
       };
 
-      // Call server function untuk create order di database dan generate QRIS
-      const result = await createOrderAndPayment(transactionDetails);
+      // Call server function for payment processing
+      console.log("📤 Calling payment server function:", {
+        orderId: transactionDetails.orderId,
+        amount: transactionDetails.grossAmount,
+      });
+      
+      const result = await createPaymentAndOrder(transactionDetails);
+      console.log("📥 Server response:", result);
 
       if (!result.success || !result.token) {
+        console.error("❌ Payment failed:", result);
         throw new Error(result.error || "Failed to create payment");
       }
 
@@ -151,6 +172,24 @@ function CheckoutPage() {
       setIsProcessing(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border bg-card">
+          <div className="mx-auto max-w-6xl px-4 py-8">
+            <h1 className="text-3xl font-bold text-foreground">Checkout</h1>
+          </div>
+        </div>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+            <p className="mt-4 text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0 && !isProcessing) {
     return (
