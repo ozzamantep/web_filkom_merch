@@ -15,6 +15,8 @@ import { Route as DbTestRouteImport } from './routes/db-test'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiDbTestRouteImport } from './routes/api/db-test'
+import { Route as AdminKasirRouteImport } from './routes/admin/kasir'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 
 const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
   id: '/order-confirmation',
@@ -46,6 +48,16 @@ const ApiDbTestRoute = ApiDbTestRouteImport.update({
   path: '/api/db-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminKasirRoute = AdminKasirRouteImport.update({
+  id: '/admin/kasir',
+  path: '/admin/kasir',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +65,8 @@ export interface FileRoutesByFullPath {
   '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
   '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +75,8 @@ export interface FileRoutesByTo {
   '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
   '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRoutesById {
@@ -70,6 +86,8 @@ export interface FileRoutesById {
   '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kasir': typeof AdminKasirRoute
   '/api/db-test': typeof ApiDbTestRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +98,8 @@ export interface FileRouteTypes {
     | '/db-test'
     | '/login'
     | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
     | '/api/db-test'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +108,8 @@ export interface FileRouteTypes {
     | '/db-test'
     | '/login'
     | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
     | '/api/db-test'
   id:
     | '__root__'
@@ -96,6 +118,8 @@ export interface FileRouteTypes {
     | '/db-test'
     | '/login'
     | '/order-confirmation'
+    | '/admin/dashboard'
+    | '/admin/kasir'
     | '/api/db-test'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +129,8 @@ export interface RootRouteChildren {
   DbTestRoute: typeof DbTestRoute
   LoginRoute: typeof LoginRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminKasirRoute: typeof AdminKasirRoute
   ApiDbTestRoute: typeof ApiDbTestRoute
 }
 
@@ -152,6 +178,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDbTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/kasir': {
+      id: '/admin/kasir'
+      path: '/admin/kasir'
+      fullPath: '/admin/kasir'
+      preLoaderRoute: typeof AdminKasirRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -161,6 +201,8 @@ const rootRouteChildren: RootRouteChildren = {
   DbTestRoute: DbTestRoute,
   LoginRoute: LoginRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminKasirRoute: AdminKasirRoute,
   ApiDbTestRoute: ApiDbTestRoute,
 }
 export const routeTree = rootRouteImport

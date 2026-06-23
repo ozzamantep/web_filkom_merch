@@ -342,7 +342,7 @@ function Index() {
                 <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg z-50">
                   {user ? (
                     <>
-                      <div className="px-4 py-3 border-b border-border">
+                      <div className="px-5 py-3 border-b border-border">
                         <p className="text-sm font-semibold text-foreground">
                           {user.type === "admin" ? user.username : user.name}
                         </p>
@@ -594,11 +594,11 @@ function Index() {
                 </button>
               </div>
               <div className="pt-4 flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-[10px] tracking-[0.2em] text-muted-foreground mb-1">
                     {p.cat}
                   </div>
-                  <h3 className="text-sm font-semibold text-ink leading-snug normal-case">
+                  <h3 className="text-sm font-semibold text-ink leading-snug normal-case line-clamp-2 break-words">
                     {p.name}
                   </h3>
                 </div>

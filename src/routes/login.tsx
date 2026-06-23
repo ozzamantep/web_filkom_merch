@@ -157,7 +157,7 @@ function LoginPage() {
     try {
       await loginAsAdmin(username, password);
       toast.success("Logged in as Admin!");
-      window.location.href = "/";
+      window.location.href = "/admin/dashboard";
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Admin login failed");
     } finally {

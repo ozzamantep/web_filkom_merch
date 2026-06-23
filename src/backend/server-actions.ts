@@ -322,3 +322,136 @@ export const getOrderById = createServerFn({ method: "GET" })
     }
   },
 );
+
+// ============ CASHIER / ADMIN ACTIONS ============
+
+export interface PaymentMethod {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export const getPaymentMethods = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ success: boolean; methods: PaymentMethod[]; error?: string }> => {
+    try {
+      return {
+        success: true,
+        methods: [
+          { id: 1, name: 'Cash / Tunai', code: 'cash' },
+          { id: 2, name: 'Debit Card', code: 'debit' },
+          { id: 3, name: 'Credit Card', code: 'credit' },
+          { id: 4, name: 'Bank Transfer', code: 'transfer' },
+          { id: 5, name: 'E-Wallet', code: 'e_wallet' },
+          { id: 6, name: 'QRIS', code: 'qris' },
+        ],
+      };
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      return { success: false, methods: [], error: 'Failed to fetch payment methods' };
+    }
+  }
+);
+
+export interface CreateSaleInput {
+  admin_id: number;
+  payment_method_id: number;
+  items: Array<{
+    product_id: number;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    discount: number;
+  }>;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  notes?: string;
+  customer_name?: string;
+}
+
+export const createSale = createServerFn({ method: "POST" })
+  .validator((d: CreateSaleInput) => d)
+  .handler(async ({ data: input }) => {
+    try {
+      const saleId = `SALE-${Date.now()}`;
+
+      // In friends' logic, this simulates success
+      return {
+        success: true,
+        sale_id: saleId,
+        db_id: Math.floor(Math.random() * 10000),
+        message: 'Sale created successfully',
+      };
+    } catch (error) {
+      console.error('Error creating sale:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create sale',
+      };
+    }
+  });
+
+export interface DailySummary {
+  total_transactions: number;
+  total_revenue: number;
+  total_discount: number;
+  avg_transaction: number;
+}
+
+export interface TopProduct {
+  id: number;
+  name: string;
+  total_quantity_sold: number;
+  total_revenue: number;
+}
+
+export interface InventoryItem {
+  id: number;
+  product_id: number;
+  product_name: string;
+  product_price: number;
+  stock: number;
+  min_stock: number;
+  status: 'ok' | 'low' | 'out';
+}
+
+export const getDailySalesSummary = createServerFn({ method: "GET" })
+  .validator((date: string) => date)
+  .handler(async ({ data: date }) => {
+    try {
+      return {
+        success: true,
+        summary: {
+          total_transactions: 0,
+          total_revenue: 0,
+          total_discount: 0,
+          avg_transaction: 0,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching daily summary:', error);
+      return { success: false, summary: null, error: 'Failed to fetch summary' };
+    }
+  });
+
+export const getTopProducts = createServerFn({ method: "GET" })
+  .validator((d: { limit?: number; days?: number } | undefined) => d)
+  .handler(async ({ data }) => {
+    try {
+      return { success: true, products: [] as TopProduct[] };
+    } catch (error) {
+      console.error('Error fetching top products:', error);
+      return { success: false, products: [], error: 'Failed to fetch products' };
+    }
+  });
+
+export const getInventory = createServerFn({ method: "GET" }).handler(
+  async () => {
+    try {
+      return { success: true, inventory: [] as InventoryItem[] };
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      return { success: false, inventory: [], error: 'Failed to fetch inventory' };
+    }
+  });
