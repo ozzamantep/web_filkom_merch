@@ -13,8 +13,15 @@ import { Route as OrderConfirmationRouteImport } from './routes/order-confirmati
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DbTestRouteImport } from './routes/db-test'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as PosRouteRouteImport } from './routes/pos/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PosIndexRouteImport } from './routes/pos/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ApiDbTestRouteImport } from './routes/api/db-test'
+import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminKasirRouteImport } from './routes/admin/kasir'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 
@@ -38,36 +45,78 @@ const CheckoutRoute = CheckoutRouteImport.update({
   path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PosRouteRoute = PosRouteRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PosIndexRoute = PosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PosRouteRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const ApiDbTestRoute = ApiDbTestRouteImport.update({
   id: '/api/db-test',
   path: '/api/db-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminKasirRoute = AdminKasirRouteImport.update({
-  id: '/admin/kasir',
-  path: '/admin/kasir',
-  getParentRoute: () => rootRouteImport,
+  id: '/kasir',
+  path: '/kasir',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/admin/dashboard',
-  path: '/admin/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/pos': typeof PosRouteRouteWithChildren
   '/checkout': typeof CheckoutRoute
   '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kasir': typeof AdminKasirRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/api/db-test': typeof ApiDbTestRoute
+  '/admin/': typeof AdminIndexRoute
+  '/pos/': typeof PosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,30 +126,49 @@ export interface FileRoutesByTo {
   '/order-confirmation': typeof OrderConfirmationRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kasir': typeof AdminKasirRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/api/db-test': typeof ApiDbTestRoute
+  '/admin': typeof AdminIndexRoute
+  '/pos': typeof PosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/pos': typeof PosRouteRouteWithChildren
   '/checkout': typeof CheckoutRoute
   '/db-test': typeof DbTestRoute
   '/login': typeof LoginRoute
   '/order-confirmation': typeof OrderConfirmationRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kasir': typeof AdminKasirRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/api/db-test': typeof ApiDbTestRoute
+  '/admin/': typeof AdminIndexRoute
+  '/pos/': typeof PosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/pos'
     | '/checkout'
     | '/db-test'
     | '/login'
     | '/order-confirmation'
     | '/admin/dashboard'
     | '/admin/kasir'
+    | '/admin/products'
+    | '/admin/settings'
+    | '/admin/transactions'
     | '/api/db-test'
+    | '/admin/'
+    | '/pos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -110,27 +178,39 @@ export interface FileRouteTypes {
     | '/order-confirmation'
     | '/admin/dashboard'
     | '/admin/kasir'
+    | '/admin/products'
+    | '/admin/settings'
+    | '/admin/transactions'
     | '/api/db-test'
+    | '/admin'
+    | '/pos'
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/pos'
     | '/checkout'
     | '/db-test'
     | '/login'
     | '/order-confirmation'
     | '/admin/dashboard'
     | '/admin/kasir'
+    | '/admin/products'
+    | '/admin/settings'
+    | '/admin/transactions'
     | '/api/db-test'
+    | '/admin/'
+    | '/pos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  PosRouteRoute: typeof PosRouteRouteWithChildren
   CheckoutRoute: typeof CheckoutRoute
   DbTestRoute: typeof DbTestRoute
   LoginRoute: typeof LoginRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminKasirRoute: typeof AdminKasirRoute
   ApiDbTestRoute: typeof ApiDbTestRoute
 }
 
@@ -164,12 +244,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pos': {
+      id: '/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof PosRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/pos/': {
+      id: '/pos/'
+      path: '/'
+      fullPath: '/pos/'
+      preLoaderRoute: typeof PosIndexRouteImport
+      parentRoute: typeof PosRouteRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/api/db-test': {
       id: '/api/db-test'
@@ -178,31 +286,86 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDbTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/transactions': {
+      id: '/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/kasir': {
       id: '/admin/kasir'
-      path: '/admin/kasir'
+      path: '/kasir'
       fullPath: '/admin/kasir'
       preLoaderRoute: typeof AdminKasirRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/dashboard': {
       id: '/admin/dashboard'
-      path: '/admin/dashboard'
+      path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminKasirRoute: typeof AdminKasirRoute
+  AdminProductsRoute: typeof AdminProductsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTransactionsRoute: typeof AdminTransactionsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminKasirRoute: AdminKasirRoute,
+  AdminProductsRoute: AdminProductsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminTransactionsRoute: AdminTransactionsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+interface PosRouteRouteChildren {
+  PosIndexRoute: typeof PosIndexRoute
+}
+
+const PosRouteRouteChildren: PosRouteRouteChildren = {
+  PosIndexRoute: PosIndexRoute,
+}
+
+const PosRouteRouteWithChildren = PosRouteRoute._addFileChildren(
+  PosRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  PosRouteRoute: PosRouteRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
   DbTestRoute: DbTestRoute,
   LoginRoute: LoginRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
-  AdminDashboardRoute: AdminDashboardRoute,
-  AdminKasirRoute: AdminKasirRoute,
   ApiDbTestRoute: ApiDbTestRoute,
 }
 export const routeTree = rootRouteImport

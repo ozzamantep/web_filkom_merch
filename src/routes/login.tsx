@@ -156,8 +156,11 @@ function LoginPage() {
 
     try {
       await loginAsAdmin(username, password);
-      toast.success("Logged in as Admin!");
-      window.location.href = "/admin/dashboard";
+      toast.success("Login berhasil!");
+      const saved = localStorage.getItem("user");
+      const parsed = saved ? JSON.parse(saved) : null;
+      window.location.href =
+        parsed?.role === "cashier" ? "/pos" : "/admin/dashboard";
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Admin login failed");
     } finally {

@@ -1,27 +1,38 @@
-import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, DollarSign, Printer, X, ShoppingCart } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Printer,
+  X,
+  ShoppingCart,
+  Banknote,
+  QrCode,
+  CreditCard,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@frontend/components/ui/button";
 import { Input } from "@frontend/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@frontend/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@frontend/components/ui/select";
-import type { CreateSaleInput, PaymentMethod } from "@backend/server-actions";
-import { createSale, getPaymentMethods } from "@backend/server-actions";
+import { Badge } from "@frontend/components/ui/badge";
+import { ScrollArea } from "@frontend/components/ui/scroll-area";
+import type { CreateSaleInput } from "@backend/server-actions";
+import { createSale, getProducts, getCategories } from "@backend/server-actions";
 import { bluetoothPrinter, type ReceiptData } from "@frontend/lib/bluetooth-printer";
-import type { ProductWithVariants } from "@backend/server-actions";
-import { getProducts } from "@backend/server-actions";
+import type { ProductWithVariants, Category } from "@backend/server-actions";
 
-interface SaleItem {
+interface CartItem {
+  id: string;
   product_id: number;
   product_name: string;
+  variant_id?: number;
+  size?: string;
   quantity: number;
   unit_price: number;
   discount: number;
 }
 
-interface CartItem extends SaleItem {
-  id: string;
-}
+type PaymentMethod = "cash" | "qris" | "debit";
 
 interface POSKasirProps {
   admin_id: number;
@@ -30,144 +41,159 @@ interface POSKasirProps {
 }
 
 export function POSKasir({ admin_id, admin_name, store_name }: POSKasirProps) {
-  // State
   const [products, setProducts] = useState<ProductWithVariants[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<ProductWithVariants[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [discount, setDiscount] = useState(0);
+  const [notes, setNotes] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [printerConnected, setPrinterConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load products & payment methods
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const productsResult = (await getProducts()) as unknown as { products: ProductWithVariants[] };
-        if (productsResult?.products) {
-          setProducts(productsResult.products);
-          setFilteredProducts(productsResult.products);
-        }
-
-        const methodsResult = (await getPaymentMethods()) as unknown as { methods: PaymentMethod[] };
-        if (methodsResult?.methods && methodsResult.methods.length > 0) {
-          setPaymentMethods(methodsResult.methods);
-          setSelectedPaymentMethod(methodsResult.methods[0].id.toString());
-        }
-      } catch (error) {
-        console.error("Failed to load data:", error);
-        toast.error("Gagal memuat data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+  const loadData = useCallback(async () => {
+    try {
+      const [productsResult, categoriesResult] = await Promise.all([
+        getProducts(),
+        getCategories(),
+      ]);
+      if (productsResult?.products) setProducts(productsResult.products);
+      if (categoriesResult?.categories) setCategories(categoriesResult.categories);
+    } catch {
+      toast.error("Gagal memuat data produk");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Filter products by search
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = products.filter(
-        (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               p.slug.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredProducts(filtered);
-    } else {
-      setFilteredProducts(products);
-    }
-  }, [searchQuery, products]);
+    void loadData();
+  }, [loadData]);
 
-  // Calculate totals
+  const getTotalStock = (product: ProductWithVariants) =>
+    product.variants.reduce((sum, v) => sum + v.stock, 0);
+
+  const filteredProducts = products.filter((p) => {
+    const matchCategory =
+      categoryFilter === "all" || String(p.category_id) === categoryFilter;
+    const q = searchQuery.trim().toLowerCase();
+    const matchSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.slug.toLowerCase().includes(q) ||
+      String(p.id).includes(q) ||
+      p.variants.some((v) => v.size.toLowerCase().includes(q));
+    return matchCategory && matchSearch && getTotalStock(p) > 0;
+  });
+
   const subtotal = cart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  const tax = Math.round(subtotal * 0.1); // 10% tax
-  const total = subtotal - discount + tax;
+  const total = subtotal - discount;
 
-  // Add to cart
   const addToCart = (product: ProductWithVariants) => {
-    const existingItem = cart.find((item) => item.product_id === product.id);
-    
-    if (existingItem) {
-      updateQuantity(existingItem.id, existingItem.quantity + 1);
-    } else {
-      const cartItem: CartItem = {
-        id: `cart-${Date.now()}`,
-        product_id: product.id,
-        product_name: product.name,
-        quantity: 1,
-        unit_price: product.price,
-        discount: 0,
-      };
-      setCart([...cart, cartItem]);
-    }
-  };
-
-  // Update quantity
-  const updateQuantity = (itemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(itemId);
+    const variant = product.variants.find((v) => v.stock > 0) || product.variants[0];
+    if (!variant || variant.stock <= 0) {
+      toast.error("Stok habis");
       return;
     }
-    setCart(cart.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)));
+
+    const existing = cart.find(
+      (item) => item.product_id === product.id && item.variant_id === variant.id,
+    );
+
+    if (existing) {
+      if (existing.quantity >= variant.stock) {
+        toast.error("Stok tidak cukup");
+        return;
+      }
+      setCart(
+        cart.map((item) =>
+          item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item,
+        ),
+      );
+    } else {
+      setCart([
+        ...cart,
+        {
+          id: `cart-${Date.now()}`,
+          product_id: product.id,
+          product_name: `${product.name}${variant.size !== "One Size" ? ` (${variant.size})` : ""}`,
+          variant_id: variant.id,
+          size: variant.size,
+          quantity: 1,
+          unit_price: product.price,
+          discount: 0,
+        },
+      ]);
+    }
   };
 
-  // Remove from cart
-  const removeFromCart = (itemId: string) => {
-    setCart(cart.filter((item) => item.id !== itemId));
+  const updateQuantity = (itemId: string, newQty: number) => {
+    if (newQty <= 0) {
+      setCart(cart.filter((item) => item.id !== itemId));
+      return;
+    }
+    const item = cart.find((i) => i.id === itemId);
+    if (item) {
+      const product = products.find((p) => p.id === item.product_id);
+      const variant = product?.variants.find((v) => v.id === item.variant_id);
+      if (variant && newQty > variant.stock) {
+        toast.error("Stok tidak cukup");
+        return;
+      }
+    }
+    setCart(cart.map((item) => (item.id === itemId ? { ...item, quantity: newQty } : item)));
   };
 
-  // Clear cart
   const clearCart = () => {
-    if (window.confirm("Yakin ingin mengosongkan keranjang?")) {
+    if (cart.length === 0) return;
+    if (window.confirm("Kosongkan keranjang?")) {
       setCart([]);
       setCustomerName("");
       setDiscount(0);
+      setNotes("");
     }
   };
 
-  // Process payment
   const handlePayment = async () => {
     if (cart.length === 0) {
       toast.error("Keranjang kosong!");
       return;
     }
 
-    if (!selectedPaymentMethod) {
-      toast.error("Pilih metode pembayaran!");
-      return;
-    }
-
     setIsProcessing(true);
-
     try {
       const saleInput: CreateSaleInput = {
         admin_id,
-        payment_method_id: parseInt(selectedPaymentMethod),
+        cashier_name: admin_name,
+        payment_method: paymentMethod,
         items: cart,
         subtotal,
         discount,
-        tax,
+        tax: 0,
         total,
+        notes: notes || undefined,
+        customer_name: customerName || undefined,
       };
 
-      const result = (await createSale({ data: saleInput })) as any;
+      const result = await createSale({ data: saleInput });
 
       if (!result.success) {
         throw new Error(result.error);
       }
 
-      // Get payment method name
-      const paymentMethod = paymentMethods.find((m) => m.id.toString() === selectedPaymentMethod);
+      const paymentLabels: Record<PaymentMethod, string> = {
+        cash: "Tunai",
+        qris: "QRIS Statis",
+        debit: "Debit",
+      };
 
-      // Print receipt
       if (printerConnected) {
         const receiptData: ReceiptData = {
           store_name,
-          sale_id: result.sale_id,
+          sale_id: result.sale_id!,
           date: new Date().toLocaleDateString("id-ID"),
           time: new Date().toLocaleTimeString("id-ID"),
           items: cart.map((item) => ({
@@ -178,38 +204,33 @@ export function POSKasir({ admin_id, admin_name, store_name }: POSKasirProps) {
           })),
           subtotal,
           discount,
-          tax,
+          tax: 0,
           total,
-          payment_method: paymentMethod?.name || "Unknown",
+          payment_method: paymentLabels[paymentMethod],
           cashier_name: admin_name,
           customer_name: customerName || undefined,
         };
-
         try {
           await bluetoothPrinter.printReceipt(receiptData);
-        } catch (printError) {
-          console.error("Print error:", printError);
-          toast.warning("Transaksi berhasil, tapi print gagal");
+        } catch {
+          toast.warning("Transaksi berhasil, cetak struk gagal");
         }
       }
 
-      // Success
-      toast.success(`Transaksi berhasil! Sale ID: ${result.sale_id}`);
-      
-      // Reset
+      toast.success(`Transaksi berhasil! ${result.sale_id}`);
       setCart([]);
       setCustomerName("");
       setDiscount(0);
+      setNotes("");
       setSearchQuery("");
+      await loadData();
     } catch (error) {
-      console.error("Payment error:", error);
       toast.error(error instanceof Error ? error.message : "Transaksi gagal");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Connect printer
   const handleConnectPrinter = async () => {
     try {
       const devices = await bluetoothPrinter.scanDevices();
@@ -217,232 +238,270 @@ export function POSKasir({ admin_id, admin_name, store_name }: POSKasirProps) {
         toast.error("Tidak ada printer ditemukan");
         return;
       }
-
       await bluetoothPrinter.connect(devices[0].id);
       setPrinterConnected(true);
       toast.success("Printer terhubung!");
     } catch (error) {
-      console.error("Printer connection error:", error);
-      toast.error(error instanceof Error ? error.message : "Gagal terhubung ke printer");
-    }
-  };
-
-  // Test printer
-  const handleTestPrinter = async () => {
-    try {
-      if (!printerConnected) {
-        toast.error("Printer belum terhubung");
-        return;
-      }
-      await bluetoothPrinter.testPrint();
-      toast.success("Test print berhasil!");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Test print gagal");
+      toast.error(error instanceof Error ? error.message : "Gagal hubungkan printer");
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-zinc-400">
+        Memuat produk...
+      </div>
+    );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 bg-background min-h-screen">
-      {/* Products Section */}
-      <div className="lg:col-span-2 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Produk</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari produk..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+    <div className="flex h-full">
+      {/* Left: Products 70% */}
+      <div className="flex w-[70%] flex-col border-r border-zinc-800">
+        <div className="shrink-0 space-y-3 border-b border-zinc-800 p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <Input
+              placeholder="Cari produk / barcode / slug..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-zinc-700 bg-zinc-900 pl-10 text-white placeholder:text-zinc-500"
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                categoryFilter === "all"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+              }`}
+            >
+              Semua
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoryFilter(String(cat.id))}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  categoryFilter === String(cat.id)
+                    ? "bg-emerald-600 text-white"
+                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            {/* Products Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[600px] overflow-y-auto">
-              {filteredProducts.map((product) => (
+        <ScrollArea className="flex-1 p-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {filteredProducts.map((product) => {
+              const stock = getTotalStock(product);
+              const sizes = product.variants.filter((v) => v.stock > 0).map((v) => v.size);
+              return (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="p-3 border border-border rounded-lg hover:bg-accent hover:border-primary transition text-left"
+                  className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 text-left transition hover:border-emerald-600 hover:shadow-lg hover:shadow-emerald-900/20 active:scale-[0.98]"
                 >
-                  <div className="text-xs font-semibold text-foreground truncate">{product.name}</div>
-                  <div className="text-sm font-bold text-primary mt-1">
-                    Rp {product.price.toLocaleString("id-ID")}
+                  <div className="aspect-square overflow-hidden bg-zinc-800">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-zinc-600 text-xs">
+                        No Image
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Click to add</div>
+                  <div className="flex flex-1 flex-col p-2.5">
+                    <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">
+                      {product.name}
+                    </p>
+                    {sizes.length > 0 && (
+                      <p className="mt-1 text-[10px] text-zinc-500 truncate">
+                        {sizes.join(", ")}
+                      </p>
+                    )}
+                    <p className="mt-auto pt-1 text-sm font-bold text-emerald-400">
+                      Rp {Number(product.price).toLocaleString("id-ID")}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`mt-1 w-fit text-[10px] ${
+                        stock <= 5
+                          ? "border-yellow-600 text-yellow-500"
+                          : "border-zinc-600 text-zinc-400"
+                      }`}
+                    >
+                      Stok: {stock}
+                    </Badge>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {filteredProducts.length === 0 && (
+            <p className="py-12 text-center text-zinc-500">Produk tidak ditemukan</p>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* Right: Cart 30% */}
+      <div className="flex w-[30%] flex-col bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+          <div className="flex items-center gap-2 font-semibold text-white">
+            <ShoppingCart className="h-5 w-5 text-emerald-400" />
+            Keranjang
+            {cart.length > 0 && (
+              <Badge className="bg-emerald-600">{cart.length}</Badge>
+            )}
+          </div>
+          <button onClick={clearCart} className="text-zinc-500 hover:text-red-400">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <ScrollArea className="flex-1 px-4">
+          {cart.length === 0 ? (
+            <p className="py-8 text-center text-sm text-zinc-500">Keranjang kosong</p>
+          ) : (
+            <div className="space-y-2 py-2">
+              {cart.map((item) => (
+                <div key={item.id} className="rounded-lg bg-zinc-800 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-white leading-tight">
+                      {item.product_name}
+                    </p>
+                    <button
+                      onClick={() => setCart(cart.filter((c) => c.id !== item.id))}
+                      className="shrink-0 text-zinc-500 hover:text-red-400"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Rp {item.unit_price.toLocaleString("id-ID")}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="rounded bg-zinc-700 p-1 hover:bg-zinc-600"
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="rounded bg-zinc-700 p-1 hover:bg-zinc-600"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="ml-auto text-sm font-semibold text-emerald-400">
+                      Rp {(item.unit_price * item.quantity).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+
+        <div className="shrink-0 space-y-3 border-t border-zinc-800 p-4">
+          <Input
+            placeholder="Nama pelanggan (opsional)"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            className="border-zinc-700 bg-zinc-800 text-sm text-white"
+          />
+          <Input
+            type="number"
+            placeholder="Diskon (Rp)"
+            value={discount || ""}
+            onChange={(e) => setDiscount(parseInt(e.target.value) || 0)}
+            className="border-zinc-700 bg-zinc-800 text-sm text-white"
+          />
+          <Input
+            placeholder="Catatan"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="border-zinc-700 bg-zinc-800 text-sm text-white"
+          />
+
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-500 uppercase tracking-wide">Metode Pembayaran</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { key: "cash" as const, label: "TUNAI", icon: Banknote },
+                  { key: "qris" as const, label: "QRIS", icon: QrCode },
+                  { key: "debit" as const, label: "DEBIT", icon: CreditCard },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setPaymentMethod(key)}
+                  className={`flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-bold transition ${
+                    paymentMethod === key
+                      ? key === "cash"
+                        ? "bg-green-600 text-white ring-2 ring-green-400"
+                        : key === "qris"
+                          ? "bg-blue-600 text-white ring-2 ring-blue-400"
+                          : "bg-purple-600 text-white ring-2 ring-purple-400"
+                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {label}
                 </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Cart Section */}
-      <div className="space-y-4">
-        {/* Cart Header */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Keranjang
-              </CardTitle>
-              <button
-                onClick={clearCart}
-                className="text-destructive hover:text-destructive/80"
-                title="Clear cart"
-              >
-                <X className="h-4 w-4" />
-              </button>
+          <div className="space-y-1 rounded-lg bg-zinc-800 p-3">
+            <div className="flex justify-between text-sm text-zinc-400">
+              <span>Subtotal</span>
+              <span>Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
-          </CardHeader>
-
-          <CardContent className="space-y-3">
-            {/* Cart Items */}
-            <div className="max-h-[300px] overflow-y-auto space-y-2 border-b pb-3">
-              {cart.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Keranjang kosong</p>
-              ) : (
-                cart.map((item) => (
-                  <div key={item.id} className="text-sm bg-accent p-2 rounded">
-                    <div className="font-semibold truncate">{item.product_name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Rp {item.unit_price.toLocaleString("id-ID")}
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="p-1 hover:bg-background rounded"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
-                        className="w-10 text-center text-xs border rounded"
-                      />
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="p-1 hover:bg-background rounded"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="ml-auto p-1 text-destructive hover:bg-background rounded"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Totals */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Subtotal:</span>
-                <span className="font-semibold">Rp {subtotal.toLocaleString("id-ID")}</span>
+            {discount > 0 && (
+              <div className="flex justify-between text-sm text-yellow-500">
+                <span>Diskon</span>
+                <span>-Rp {discount.toLocaleString("id-ID")}</span>
               </div>
-
-              {discount > 0 && (
-                <div className="flex justify-between text-sm text-yellow-600">
-                  <span>Diskon:</span>
-                  <span>-Rp {discount.toLocaleString("id-ID")}</span>
-                </div>
-              )}
-
-              {tax > 0 && (
-                <div className="flex justify-between text-sm text-blue-600">
-                  <span>Pajak (10%):</span>
-                  <span>Rp {tax.toLocaleString("id-ID")}</span>
-                </div>
-              )}
-
-              <div className="border-t pt-2 flex justify-between text-lg font-bold">
-                <span>Total:</span>
-                <span>Rp {total.toLocaleString("id-ID")}</span>
-              </div>
+            )}
+            <div className="flex justify-between text-lg font-bold text-white pt-1 border-t border-zinc-700">
+              <span>TOTAL</span>
+              <span className="text-emerald-400">Rp {total.toLocaleString("id-ID")}</span>
             </div>
+          </div>
 
-            {/* Customer & Discount */}
-            <div className="space-y-2 border-t pt-3">
-              <Input
-                placeholder="Nama customer (opsional)"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="text-xs"
-              />
+          <button
+            onClick={() => void handleConnectPrinter()}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs transition ${
+              printerConnected
+                ? "bg-zinc-700 text-emerald-400"
+                : "border border-zinc-600 text-zinc-400 hover:border-zinc-500"
+            }`}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            {printerConnected ? "Printer Terhubung" : "Hubungkan Printer Bluetooth"}
+          </button>
 
-              <Input
-                type="number"
-                placeholder="Diskon (Rp)"
-                value={discount || ""}
-                onChange={(e) => setDiscount(parseInt(e.target.value) || 0)}
-                className="text-xs"
-              />
-
-              <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
-                <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Metode pembayaran" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map((method) => (
-                    <SelectItem key={method.id} value={method.id.toString()}>
-                      {method.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Printer Section */}
-            <div className="border-t pt-3 space-y-2">
-              <Button
-                onClick={handleConnectPrinter}
-                variant={printerConnected ? "default" : "outline"}
-                size="sm"
-                className="w-full text-xs"
-              >
-                <Printer className="h-3 w-3 mr-2" />
-                {printerConnected ? "✔ Printer Connected" : "Connect Printer"}
-              </Button>
-
-              {printerConnected && (
-                <Button onClick={handleTestPrinter} variant="outline" size="sm" className="w-full text-xs">
-                  Test Print
-                </Button>
-              )}
-            </div>
-
-            {/* Checkout Button */}
-            <Button
-              onClick={handlePayment}
-              disabled={cart.length === 0 || isProcessing}
-              size="lg"
-              className="w-full"
-            >
-              <DollarSign className="h-4 w-4 mr-2" />
-              {isProcessing ? "Processing..." : "Checkout"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Cashier Info */}
-        <Card className="text-xs text-muted-foreground p-3">
-          <div>👤 Kasir: {admin_name}</div>
-          <div>🏪 {store_name}</div>
-        </Card>
+          <Button
+            onClick={() => void handlePayment()}
+            disabled={cart.length === 0 || isProcessing}
+            className="h-14 w-full bg-emerald-600 text-base font-bold hover:bg-emerald-500 disabled:opacity-50"
+            size="lg"
+          >
+            {isProcessing ? "Memproses..." : "BAYAR & CETAK STRUK"}
+          </Button>
+        </div>
       </div>
     </div>
   );

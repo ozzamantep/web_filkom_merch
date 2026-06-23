@@ -1,9 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
+export type AdminRole = "admin" | "cashier";
+
 export interface AdminUser {
   type: "admin";
+  role: AdminRole;
   username: string;
   email: string;
+  id?: number;
 }
 
 export interface BuyerUser {
@@ -44,15 +48,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginAsAdmin = async (username: string, password: string) => {
-    // Simple validation
-    if (username !== "adminfm" || password !== "Filkommerch123_wkwk") {
+    let role: AdminRole = "admin";
+    let email = "admin@filkommerch.ub";
+
+    if (username === "adminfm" && password === "Filkommerch123_wkwk") {
+      role = "admin";
+    } else if (username === "kasirfm" && password === "Kasir123_wkwk") {
+      role = "cashier";
+      email = "kasir@filkommerch.ub";
+    } else {
       throw new Error("Invalid username or password");
     }
 
     const adminUser: AdminUser = {
       type: "admin",
-      username: "adminfm",
-      email: "admin@filkommerch.ub",
+      role,
+      username,
+      email,
+      id: role === "admin" ? 1 : 2,
     };
 
     setUser(adminUser);
